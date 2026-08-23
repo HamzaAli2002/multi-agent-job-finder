@@ -1,6 +1,6 @@
 import os
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -114,14 +114,30 @@ with st.sidebar:
     max_jobs = st.slider("Maximum Jobs (final list)", min_value=3, max_value=30, value=10, step=1)
 
     st.divider()
-    st.subheader("📅 Posting Date Range")
-    use_date_filter = st.checkbox("Filter by specific date range", value=False)
-    col_a, col_b = st.columns(2)
-    with col_a:
-        from_date_input = st.date_input("From Date", value=date.today().replace(day=1), disabled=not use_date_filter)
-    with col_b:
-        to_date_input = st.date_input("To Date", value=date.today(), disabled=not use_date_filter)
-    include_undated = st.checkbox("Include jobs with unknown dates", value=True)
+    st.subheader("📅 Freshness / Posting Date")
+    freshness = st.radio(
+        "Show jobs posted:",
+        ["Last 24 hours", "Last 3 days", "Last 7 days", "Custom range", "Any time"],
+        index=1,  # default: Last 3 days
+    )
+
+    if freshness == "Custom range":
+        col_a, col_b = st.columns(2)
+        with col_a:
+            from_date_input = st.date_input("From Date", value=date.today().replace(day=1))
+        with col_b:
+            to_date_input = st.date_input("To Date", value=date.today())
+    elif freshness == "Any time":
+        from_date_input = None
+        to_date_input = None
+    else:
+        days_map = {"Last 24 hours": 1, "Last 3 days": 3, "Last 7 days": 7}
+        from_date_input = date.today() - timedelta(days=days_map[freshness])
+        to_date_input = date.today()
+
+    include_undated = st.checkbox(
+        "Include jobs with unknown/unverifiable dates", value=(freshness == "Any time")
+    )
 
     st.divider()
     st.subheader("📍 Filters")
@@ -187,8 +203,9 @@ if start_search:
         stage_states[stage_key] = status
         render_progress(progress_placeholder, stage_states)
 
-    from_dt = datetime.combine(from_date_input, datetime.min.time()) if use_date_filter else None
-    to_dt = datetime.combine(to_date_input, datetime.min.time()) if use_date_filter else None
+    # from_dt = start of day, to_dt = end of day, so "today" is fully inclusive.
+    from_dt = datetime.combine(from_date_input, datetime.min.time()) if from_date_input else None
+    to_dt = datetime.combine(to_date_input, datetime.max.time()) if to_date_input else None
 
     try:
         result = run_pipeline(
@@ -239,6 +256,12 @@ if "pipeline_result" in st.session_state:
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("📊 Match Insights")
+    st.caption(
+        f"Search freshness bias sent to Tavily: **{stats.get('search_time_range', 'none')}**  |  "
+        f"Search results found: {stats.get('search_results_found', 0)}  |  "
+        f"Pages scraped: {stats.get('raw_jobs_scraped', 0)}  |  "
+        f"Non-job pages removed: {stats.get('removed_non_job', 0)}"
+    )
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.markdown(f'<div class="metric-card"><div class="metric-value">{len(jobs)}</div><div class="metric-label">Final Jobs</div></div>', unsafe_allow_html=True)
     c2.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("unique_companies", 0)}</div><div class="metric-label">Companies</div></div>', unsafe_allow_html=True)
