@@ -59,20 +59,29 @@ def process_jobs(
     location_filter: str = "",
     employment_type_filter: str = "",
     include_undated: bool = True,
+    min_match_percent: int = 0,
 ) -> dict[str, Any]:
     """
     Complete Stage 5 processing.
 
     Returns:
         {
-            "jobs": [...],            # final, sorted, limited
-            "excluded_by_date": int,  # jobs removed for being outside range
+            "jobs": [...],                # final, sorted, limited
+            "excluded_by_date": int,      # total jobs removed by the date stage
+            "excluded_undated": int,      # ...of which had NO parseable date
+            "excluded_out_of_range": int, # ...of which had a date outside range
             "removed_duplicates": int,
             "removed_non_job": int,
+            "removed_low_relevance": int, # jobs below min_match_percent
         }
     """
+    empty_stats = {
+        "jobs": [], "excluded_by_date": 0, "excluded_undated": 0,
+        "excluded_out_of_range": 0, "removed_duplicates": 0,
+        "removed_non_job": 0, "removed_low_relevance": 0,
+    }
     if not jobs:
-        return {"jobs": [], "excluded_by_date": 0, "removed_duplicates": 0, "removed_non_job": 0}
+        return empty_stats
 
     # 1. Normalize
     normalized_jobs = [normalize_job(job) for job in jobs]
@@ -103,9 +112,23 @@ def process_jobs(
     in_range_jobs, excluded_jobs = filter_by_date_range(
         unique_jobs, from_date=from_date, to_date=to_date, include_undated=include_undated
     )
+    # Breakdown for diagnostics: was a job excluded because it had NO
+    # verifiable date, or because its (known) date fell outside the range?
+    excluded_undated = sum(1 for j in excluded_jobs if j.get("_parsed_date") is None)
+    excluded_out_of_range = len(excluded_jobs) - excluded_undated
 
     # 6. Relevance scoring
     scored_jobs = score_jobs(in_range_jobs, candidate)
+
+    # 6b. Minimum relevance threshold — drop jobs that don't genuinely
+    # match the candidate profile (e.g. a 0% match job should never reach
+    # the final table just because it happened to be recent).
+    if min_match_percent > 0:
+        count_before_relevance = len(scored_jobs)
+        scored_jobs = [j for j in scored_jobs if j.get("match_percent", 0) >= min_match_percent]
+        removed_low_relevance = count_before_relevance - len(scored_jobs)
+    else:
+        removed_low_relevance = 0
 
     # 7. Sort (score desc, date desc)
     sorted_jobs = sort_jobs(scored_jobs)
@@ -118,8 +141,11 @@ def process_jobs(
     return {
         "jobs": final_jobs,
         "excluded_by_date": len(excluded_jobs),
+        "excluded_undated": excluded_undated,
+        "excluded_out_of_range": excluded_out_of_range,
         "removed_duplicates": removed_duplicates,
         "removed_non_job": removed_non_job,
+        "removed_low_relevance": removed_low_relevance,
     }
 
 

@@ -66,6 +66,7 @@ def run_pipeline(
     employment_type_filter: str = "",
     include_undated: bool = True,
     search_time_range: Optional[str] = "auto",
+    min_match_percent: int = 20,
     progress: ProgressFn = None,
 ) -> dict[str, Any]:
     """
@@ -81,6 +82,9 @@ def run_pipeline(
             "year"/None). "auto" (default) derives it from from_date/
             to_date so the search itself favors recent postings whenever
             a tight date range is selected.
+        min_match_percent: drop jobs scoring below this relevance % so an
+            unrelated job (e.g. 0% match) never reaches the final table
+            just because it happened to satisfy the date filter.
         progress: optional callback(stage_key, status) for live UI updates.
     """
 
@@ -171,12 +175,16 @@ def run_pipeline(
         location_filter=location_filter,
         employment_type_filter=employment_type_filter,
         include_undated=include_undated,
+        min_match_percent=min_match_percent,
     )
     final_jobs = processing_result["jobs"]
     statistics = get_job_statistics(final_jobs)
     statistics["excluded_by_date"] = processing_result["excluded_by_date"]
+    statistics["excluded_undated"] = processing_result["excluded_undated"]
+    statistics["excluded_out_of_range"] = processing_result["excluded_out_of_range"]
     statistics["removed_duplicates"] = processing_result["removed_duplicates"]
     statistics["removed_non_job"] = processing_result["removed_non_job"]
+    statistics["removed_low_relevance"] = processing_result["removed_low_relevance"]
     statistics["raw_jobs_scraped"] = len(scraped_jobs)
     statistics["search_results_found"] = len(search_results)
     statistics["search_time_range"] = resolved_time_range or "none (no freshness bias)"

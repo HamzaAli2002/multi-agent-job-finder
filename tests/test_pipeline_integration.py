@@ -76,3 +76,42 @@ def test_process_jobs_full_pipeline():
     stats = get_job_statistics(final_jobs)
     assert stats["total_jobs"] == 1
     assert stats["unique_companies"] == 1
+
+
+def test_min_match_percent_filters_irrelevant_jobs():
+    jobs = [
+        {
+            "title": "Junior Python Developer",
+            "company": "Acme",
+            "location": "Karachi",
+            "employment_type": "Full-time",
+            "description": "FastAPI Django Python role",
+            "posting_date": "2026-08-10",
+            "url": "https://boards.greenhouse.io/acme/jobs/1",
+        },
+        {
+            # totally unrelated to the Python-dev candidate — must be
+            # dropped by min_match_percent even though it's in-range,
+            # non-duplicate, and structurally valid.
+            "title": "Project Management Head (Mobile Applications)",
+            "company": "LN Technologies",
+            "location": "Karachi Division, Sindh, PK",
+            "employment_type": "Full-time",
+            "description": "Strategic PMO leadership, delivery governance.",
+            "posting_date": "2026-08-10",
+            "url": "https://boards.greenhouse.io/ln/jobs/2",
+        },
+    ]
+
+    result = process_jobs(
+        jobs,
+        candidate=make_candidate(),
+        max_jobs=10,
+        from_date=datetime(2026, 8, 1),
+        to_date=datetime(2026, 8, 20),
+        min_match_percent=20,
+    )
+
+    titles = [j["title"] for j in result["jobs"]]
+    assert titles == ["Junior Python Developer"]
+    assert result["removed_low_relevance"] == 1

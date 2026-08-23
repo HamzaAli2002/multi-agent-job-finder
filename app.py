@@ -145,6 +145,13 @@ with st.sidebar:
     employment_type_filter = st.selectbox(
         "Employment Type", ["Any", "Full-time", "Part-time", "Contract", "Internship", "Remote", "Hybrid", "On-site"]
     )
+    min_match_percent = st.slider(
+        "Minimum Match %",
+        min_value=0, max_value=80, value=20, step=5,
+        help="Jobs scoring below this relevance % are dropped — prevents "
+             "an unrelated job (e.g. 0% match) from showing up just "
+             "because it happened to fall inside the date range.",
+    )
 
     st.divider()
     st.caption(
@@ -217,6 +224,7 @@ if start_search:
             location_filter=location_filter,
             employment_type_filter=employment_type_filter,
             include_undated=include_undated,
+            min_match_percent=min_match_percent,
             progress=on_progress,
         )
         st.session_state["pipeline_result"] = result
@@ -262,21 +270,35 @@ if "pipeline_result" in st.session_state:
         f"Pages scraped: {stats.get('raw_jobs_scraped', 0)}  |  "
         f"Non-job pages removed: {stats.get('removed_non_job', 0)}"
     )
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
     c1.markdown(f'<div class="metric-card"><div class="metric-value">{len(jobs)}</div><div class="metric-label">Final Jobs</div></div>', unsafe_allow_html=True)
     c2.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("unique_companies", 0)}</div><div class="metric-label">Companies</div></div>', unsafe_allow_html=True)
     c3.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("average_match", 0)}%</div><div class="metric-label">Avg Match</div></div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("removed_duplicates", 0)}</div><div class="metric-label">Duplicates Removed</div></div>', unsafe_allow_html=True)
-    c5.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("excluded_by_date", 0)}</div><div class="metric-label">Outside Date Range</div></div>', unsafe_allow_html=True)
+    c4.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("removed_duplicates", 0)}</div><div class="metric-label">Duplicates</div></div>', unsafe_allow_html=True)
+    c5.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("excluded_undated", 0)}</div><div class="metric-label">No Verifiable Date</div></div>', unsafe_allow_html=True)
+    c6.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("excluded_out_of_range", 0)}</div><div class="metric-label">Date Out of Range</div></div>', unsafe_allow_html=True)
+    c7.markdown(f'<div class="metric-card"><div class="metric-value">{stats.get("removed_low_relevance", 0)}</div><div class="metric-label">Low Relevance</div></div>', unsafe_allow_html=True)
 
     st.divider()
     st.subheader(f"🎯 Final Job Table ({len(jobs)})")
 
     if not jobs:
-        st.error(
-            "No jobs matched your filters. Try widening the date range, clearing the "
-            "location filter, or increasing Search Results per Query."
+        hints = []
+        if stats.get("excluded_undated", 0) > stats.get("excluded_out_of_range", 0):
+            hints.append(
+                "most results had no verifiable posting date (many job boards "
+                "block scraping) — try checking **'Include jobs with unknown/"
+                "unverifiable dates'**, or pick a wider freshness window"
+            )
+        if stats.get("removed_low_relevance", 0) > 0:
+            hints.append("some jobs were filtered for low relevance — try lowering **Minimum Match %**")
+        if stats.get("excluded_out_of_range", 0) > 0:
+            hints.append("some jobs had dates outside your selected range — try **Last 7 days** or **Any time**")
+        hint_text = "; ".join(hints) if hints else (
+            "try widening the date range, clearing the location filter, or "
+            "increasing Search Results per Query"
         )
+        st.error(f"No jobs matched your filters — {hint_text}.")
     else:
         table_rows = [{
             "Job": j.get("title"),
