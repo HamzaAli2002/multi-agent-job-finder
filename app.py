@@ -19,76 +19,161 @@ st.set_page_config(
 )
 
 # =========================================================
-# TRANSPARENT / GLASS THEME
+# DARK GLASS THEME — warm amber accent, floating glow orbs,
+# terminal-style panels (reference: WorkForge landing style)
 # =========================================================
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
     .stApp {
-        background: linear-gradient(135deg, #0b1220 0%, #111827 45%, #0b1220 100%);
-        color: #e5e7eb;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(217,119,6,0.16), transparent 24%),
+            radial-gradient(circle at 88% 12%, rgba(180,83,9,0.13), transparent 28%),
+            radial-gradient(circle at 78% 68%, rgba(217,119,6,0.10), transparent 32%),
+            radial-gradient(circle at 18% 82%, rgba(120,53,15,0.13), transparent 30%),
+            radial-gradient(circle at 50% 45%, rgba(0,0,0,0), transparent 40%),
+            linear-gradient(180deg, #0a0908 0%, #0d0c0a 100%);
+        color: #e7e5e4;
     }
     section[data-testid="stSidebar"] {
-        background: rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(10px);
-        border-right: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(20, 18, 16, 0.55);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-right: 1px solid rgba(251, 146, 60, 0.12);
     }
+    section[data-testid="stSidebar"] * { color: #d6d3d1; }
+
+    /* Glass panel */
     .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        border-radius: 16px;
-        padding: 18px 20px;
+        background: rgba(255, 255, 255, 0.035);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 18px;
+        padding: 20px 22px;
         margin-bottom: 14px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+
+    /* Eyebrow label + title, matching the reference's "TRY TO BREAK IT" style */
+    .eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        color: #fb923c;
+        text-transform: uppercase;
+        margin-bottom: 8px;
     }
     .main-title {
-        font-size: 34px;
+        font-size: 40px;
         font-weight: 800;
-        background: linear-gradient(90deg, #38bdf8, #a78bfa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 2px;
+        color: #fafaf9;
+        line-height: 1.15;
+        margin-bottom: 10px;
+        letter-spacing: -0.5px;
     }
-    .subtitle { color: rgba(229,231,235,0.65); font-size: 14px; margin-bottom: 20px; }
+    .main-title .accent { color: #fb923c; }
+    .subtitle { color: rgba(231,229,228,0.6); font-size: 15px; margin-bottom: 24px; max-width: 640px; }
+
+    /* Terminal-style card (mac-style dots) for progress / query panels */
+    .terminal-card {
+        background: rgba(12, 10, 9, 0.65);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 16px;
+        padding: 0;
+        margin-bottom: 14px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .terminal-header {
+        display: flex; gap: 7px; align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        background: rgba(255,255,255,0.02);
+    }
+    .terminal-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .terminal-dot.red { background: #f87171; }
+    .terminal-dot.amber { background: #fbbf24; }
+    .terminal-dot.tan { background: #d6a678; }
+    .terminal-body {
+        padding: 16px 18px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
+    }
 
     .metric-card {
-        background: rgba(255,255,255,0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.035);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,0.09);
         border-radius: 14px;
         padding: 14px;
         text-align: center;
     }
-    .metric-value { font-size: 24px; font-weight: 800; color: #38bdf8; }
-    .metric-label { color: rgba(229,231,235,0.6); font-size: 12px; }
+    .metric-value { font-size: 24px; font-weight: 800; color: #fb923c; }
+    .metric-label { color: rgba(231,229,228,0.55); font-size: 12px; margin-top: 2px; }
 
     .job-card {
-        background: rgba(255,255,255,0.045);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.10);
-        border-left: 3px solid #38bdf8;
-        border-radius: 14px;
+        background: rgba(255,255,255,0.03);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(255,255,255,0.09);
+        border-left: 3px solid #fb923c;
+        border-radius: 16px;
         padding: 18px 20px;
         margin-bottom: 14px;
+        transition: border-color 0.2s ease;
     }
-    .job-title { font-size: 18px; font-weight: 700; color: #f8fafc; }
-    .job-company { color: #7dd3fc; font-size: 13px; margin-top: 3px; font-weight: 600; }
-    .job-description { color: rgba(229,231,235,0.75); line-height: 1.55; margin-top: 8px; font-size: 13px; }
+    .job-card:hover { border-color: rgba(255,255,255,0.18); }
+    .job-title { font-size: 18px; font-weight: 700; color: #fafaf9; }
+    .job-company { color: #fdba74; font-size: 13px; margin-top: 3px; font-weight: 600; }
+    .job-description { color: rgba(231,229,228,0.7); line-height: 1.55; margin-top: 8px; font-size: 13px; }
 
     .badge {
         display: inline-block; padding: 3px 10px; border-radius: 20px;
         font-size: 11px; font-weight: 700; margin: 2px;
-        border: 1px solid rgba(255,255,255,0.15);
-        background: rgba(255,255,255,0.06);
-        color: #e5e7eb;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        color: #e7e5e4;
     }
-    .badge-match-high { background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(74,222,128,0.4); }
-    .badge-match-mid { background: rgba(250,204,21,0.15); color: #facc15; border-color: rgba(250,204,21,0.4); }
-    .badge-match-low { background: rgba(148,163,184,0.15); color: #cbd5e1; border-color: rgba(148,163,184,0.4); }
-    .badge-source { background: rgba(167,139,250,0.15); color: #c4b5fd; border-color: rgba(167,139,250,0.4); }
+    .badge-match-high { background: rgba(34,197,94,0.14); color: #4ade80; border-color: rgba(74,222,128,0.35); }
+    .badge-match-mid { background: rgba(251,191,36,0.14); color: #fbbf24; border-color: rgba(251,191,36,0.35); }
+    .badge-match-low { background: rgba(168,162,158,0.14); color: #d6d3d1; border-color: rgba(168,162,158,0.35); }
+    .badge-source { background: rgba(251,146,60,0.14); color: #fdba74; border-color: rgba(251,146,60,0.35); }
 
-    .progress-row { font-size: 14px; padding: 3px 0; color: rgba(229,231,235,0.85); }
+    .progress-row { font-size: 14px; padding: 4px 0; color: rgba(231,229,228,0.85); font-family: 'JetBrains Mono', monospace; }
+
+    /* Streamlit primary button -> warm pill button, matches "Get started" */
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(90deg, #f59e0b, #fb923c);
+        color: #1c1917;
+        border: none;
+        border-radius: 999px;
+        font-weight: 700;
+        box-shadow: 0 4px 20px rgba(251,146,60,0.25);
+    }
+    div.stButton > button[kind="primary"]:hover {
+        box-shadow: 0 6px 26px rgba(251,146,60,0.4);
+        transform: translateY(-1px);
+    }
+    div.stButton > button[kind="secondary"] {
+        background: rgba(255,255,255,0.04);
+        color: #e7e5e4;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 999px;
+    }
+
+    /* File uploader + inputs: subtle glass */
+    div[data-testid="stFileUploaderDropzone"] {
+        background: rgba(255,255,255,0.03);
+        border: 1px dashed rgba(251,146,60,0.35);
+        border-radius: 16px;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -97,10 +182,14 @@ st.markdown(
 # =========================================================
 # HEADER
 # =========================================================
-st.markdown('<div class="main-title">🧭 Job Finder</div>', unsafe_allow_html=True)
+st.markdown('<div class="eyebrow">Resume → Ranked Jobs</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="subtitle">Resume → Python-powered search, date-range filtering, '
-    'and relevance ranking. One LLM call for analysis — everything else is algorithmic.</div>',
+    '<div class="main-title">Skip the noise. <span class="accent">Get jobs that fit.</span></div>',
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="subtitle">One LLM call reads your resume. Everything after that — search, '
+    'scraping, date filtering, deduping, and ranking — is deterministic Python.</div>',
     unsafe_allow_html=True,
 )
 
@@ -187,7 +276,17 @@ def render_progress(placeholder, states: dict):
         status = states.get(key, "pending")
         icon = {"pending": "⬜", "running": "🔄", "done": "✅", "error": "❌"}[status]
         lines.append(f'<div class="progress-row">{icon} {STAGE_LABELS[key]}</div>')
-    placeholder.markdown('<div class="glass-card">' + "".join(lines) + "</div>", unsafe_allow_html=True)
+    placeholder.markdown(
+        '<div class="terminal-card">'
+        '<div class="terminal-header">'
+        '<div class="terminal-dot red"></div>'
+        '<div class="terminal-dot amber"></div>'
+        '<div class="terminal-dot tan"></div>'
+        '</div>'
+        f'<div class="terminal-body">{"".join(lines)}</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 if start_search:

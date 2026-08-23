@@ -3,9 +3,9 @@
 A resume-driven job discovery system built around a simple principle:
 **use an LLM only where an LLM is actually needed.** One Gemini call
 reads the resume and builds a candidate profile. Everything after that
-— query building, web search, scraping, non-job filtering, date-range
-filtering, duplicate removal, and relevance ranking — is deterministic
-Python.
+— query building, web search, freshness-biased scraping, non-job
+filtering, date-range filtering, duplicate removal, and relevance
+ranking — is deterministic Python.
 
 This is an improved version of the original
 [Multi-Agent-Job-Finder](https://github.com/msncoder/Multi-Agent-Job-Finder)
@@ -74,19 +74,33 @@ and replaces both agents with plain Python:
 - Robust date normalization: absolute formats (`August 10, 2026`,
   `10 Aug 2026`, `2026-08-10`) **and** relative formats (`Posted 3 days
   ago`, `Posted yesterday`) — normalized against today's date
+- **Freshness-biased search** — a Freshness preset (Last 24 hours /
+  3 days / 7 days / Custom / Any time) both filters results *and*
+  sends Tavily's `time_range` parameter, so the search itself favors
+  recently-published pages instead of relying on filtering alone
 - Specific date-range filtering (`From Date` → `To Date`), inclusive,
-  never fabricates a date it can't verify
+  never fabricates a date it can't verify. Jobs with no verifiable date
+  are shown or hidden based on an explicit toggle — never silently
+  guessed
 - URL-normalization + hash-based duplicate removal (handles tracking
   params, `www.`, `http` vs `https`, trailing slashes)
 - Weighted relevance scoring (job title, technology, skills, location,
   experience level, employment type) → 0–100% match score
+- **Minimum Match % filter** — drops jobs below a configurable
+  relevance threshold so an unrelated job never reaches the final
+  table just because it satisfied the date/location filters
 - Configurable **Maximum Jobs** and **Search Results per query**
 - Location and employment-type filters
-- Live progress checklist while the pipeline runs
+- Live progress checklist while the pipeline runs, rendered as a
+  terminal-style panel
+- Diagnostic breakdown when a search returns nothing — the UI
+  distinguishes *no verifiable date* vs *date outside range* vs
+  *low relevance* vs *duplicate* so you know exactly why a job was
+  dropped, instead of a generic "no results"
 - Final results as a clean table (Job / Company / Date / Location /
   Match / Link) plus card view, with CSV export
-- Transparent glass-style Streamlit theme
-
+- Dark glass UI theme with warm accent color and floating glow
+  background, terminal-style panels for progress/query display
 
 ---
 
@@ -137,13 +151,15 @@ Then open the local URL Streamlit prints (usually `http://localhost:8501`).
 ## Streamlit Usage
 
 1. Set your search preferences in the sidebar: max search results per
-   query, maximum final jobs, optional posting-date range, location
-   filter, and employment type.
+   query, maximum final jobs, a **Freshness** preset (Last 24 hours /
+   3 days / 7 days / Custom range / Any time), location filter,
+   employment type, and a minimum match % threshold.
 2. Upload a PDF or DOCX resume.
 3. Click **Find Matching Jobs**.
-4. Watch the live progress checklist as each stage completes.
-5. Review the candidate profile, match insights, final job table, and
-   job cards. Export results as CSV if needed.
+4. Watch the live terminal-style progress panel as each stage completes.
+5. Review the candidate profile, match insights (with a breakdown of
+   why any jobs were excluded), final job table, and job cards. Export
+   results as CSV if needed.
 
 ## Search Configuration
 
@@ -152,7 +168,7 @@ Then open the local URL Streamlit prints (usually `http://localhost:8501`).
 - **Maximum Jobs** — cap on the final ranked list shown to the user.
 - These are fully dynamic from the sidebar — no code changes needed.
 
-## Date Filtering
+## Date Filtering & Freshness
 
 The date filter (`src/processors/date_filter.py`) normalizes whatever
 format a job page provides — absolute dates, relative phrases like
@@ -161,7 +177,23 @@ format a job page provides — absolute dates, relative phrases like
 selected `[From Date, To Date]` range (inclusive). If a job's date
 can't be reliably determined, it is labeled `"date not available"` and
 is **never guessed** — you choose in the sidebar whether such jobs are
-included or excluded from results.
+included or excluded.
+
+On top of post-hoc filtering, the selected freshness window is also
+sent to Tavily as a `time_range` parameter (`src/pipeline.py`,
+`_infer_time_range`), so the search itself is biased toward recently
+published pages rather than relying on filtering alone to remove stale
+results.
+
+## Relevance Scoring & Minimum Match %
+
+`src/processors/relevance_scorer.py` scores each job against the
+candidate profile using the BRD's weighted signals (title, technology,
+skill, location, experience, employment type) and converts the raw
+score to a 0–100% match. The **Minimum Match %** slider in the sidebar
+then drops anything below that threshold, so an unrelated job (e.g. a
+0% match role in a completely different field) never reaches the final
+table just because it happened to satisfy the date/location filters.
 
 ## Technologies Used
 
@@ -192,8 +224,10 @@ pytest tests/ -v
 
 Covers: date normalization (absolute + relative + unavailable),
 date-range filtering, URL normalization & duplicate removal, non-job
-content filtering, relevance scoring, and a full Stage-5 processing
-integration test — all without any network or API calls.
+content filtering, relevance scoring, minimum-match-% filtering,
+search-query optimization, freshness/`time_range` inference, and a
+full Stage-5 processing integration test — all without any network or
+API calls (23 tests).
 
 ## Limitations
 
@@ -201,13 +235,18 @@ integration test — all without any network or API calls.
   access; per the BRD's security requirement, this project does not
   automate logins or store credentials. Job discovery on those
   platforms happens through Tavily's public search index rather than
-  direct authenticated scraping.
+  direct authenticated scraping. Many such platforms also block
+  automated page fetches, which can leave a job without a verifiable
+  posting date — the diagnostic breakdown in the UI ("No Verifiable
+  Date" vs "Date Out of Range" vs "Low Relevance") makes this visible
+  instead of hiding it behind a generic empty result.
 - Heuristic extraction (Tier 2, used when a page has no schema.org
   data) is best-effort — some fields may come back as "not available"
   rather than a guess.
 - Relevance scoring is a transparent weighted heuristic, not a
   semantic/embedding model — it favors precision (avoiding wrong
-  guesses) over recall.
+  guesses) over recall, and is complemented by the Minimum Match %
+  threshold to keep unrelated jobs out of the final table.
 
 ## Future Improvements
 
@@ -218,17 +257,25 @@ integration test — all without any network or API calls.
 
 ---
 
+## Screenshots
+
+_Add screenshots here after running the app locally with your own API
+keys — e.g. the Candidate Profile panel, Match Insights breakdown, and
+Final Job Table._
+
+---
+
 ## Project Structure
 
 ```
-app.py                          # Streamlit UI (transparent theme)
+app.py                          # Streamlit UI (dark glass theme, terminal-style panels)
 src/
   config.py                     # Settings (.env driven)
-  pipeline.py                   # Orchestrates all stages + progress callback
+  pipeline.py                   # Orchestrates all stages + progress callback + freshness inference
   chains/analyzer.py            # THE single LLM call (resume -> profile)
   search/
     query_optimizer.py          # Python query optimization
-    job_search.py                # Direct Tavily calls, Python filtering
+    job_search.py                # Direct Tavily calls (with time_range freshness bias), Python filtering
   scraper/
     page_fetcher.py              # HTTP fetch + HTML cleanup
     job_extractor.py             # schema.org JSON-LD + heuristic extraction
@@ -238,7 +285,7 @@ src/
     duplicate_removal.py          # URL normalization + dedup
     date_filter.py                 # Absolute + relative date normalization/range
     relevance_scorer.py            # Weighted match scoring
-    job_result_processor.py        # Orchestrates Stage 5
+    job_result_processor.py        # Orchestrates Stage 5 (incl. min-match-% filtering)
   tools/resume_reader.py          # PDF/DOCX text extraction
-tests/                             # Pytest suite (no network required)
+tests/                             # Pytest suite, 23 tests (no network required)
 ```
