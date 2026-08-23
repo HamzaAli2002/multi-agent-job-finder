@@ -36,6 +36,26 @@ def _notify(progress: ProgressFn, stage: str, status: str) -> None:
         progress(stage, status)
 
 
+def _infer_time_range(from_date: Optional[datetime], to_date: Optional[datetime]) -> Optional[str]:
+    """
+    Maps the user's selected posting-date range to Tavily's time_range
+    preset (day/week/month/year), so the SEARCH itself is biased toward
+    fresh content — not just filtered after the fact. Without this,
+    Tavily ranks purely by relevance and happily returns evergreen
+    career pages that are months old.
+    """
+    if not from_date:
+        return None
+    span_days = ((to_date or datetime.now()) - from_date).days
+    if span_days <= 1:
+        return "day"
+    if span_days <= 7:
+        return "week"
+    if span_days <= 31:
+        return "month"
+    return "year"
+
+
 def run_pipeline(
     resume_path: str,
     max_jobs: int = 10,
@@ -45,6 +65,7 @@ def run_pipeline(
     location_filter: str = "",
     employment_type_filter: str = "",
     include_undated: bool = True,
+    search_time_range: Optional[str] = "auto",
     progress: ProgressFn = None,
 ) -> dict[str, Any]:
     """
@@ -56,6 +77,10 @@ def run_pipeline(
         max_search_results: Tavily results per search query.
         from_date / to_date: inclusive posting-date range filter.
         location_filter / employment_type_filter: Python string filters.
+        search_time_range: Tavily freshness bias ("day"/"week"/"month"/
+            "year"/None). "auto" (default) derives it from from_date/
+            to_date so the search itself favors recent postings whenever
+            a tight date range is selected.
         progress: optional callback(stage_key, status) for live UI updates.
     """
 
@@ -107,7 +132,14 @@ def run_pipeline(
     # Stage 3: Job Search (Tavily API — Python, no LLM agent)
     # =====================================================
     _notify(progress, "jobs_searched", "running")
-    search_results = run_job_search(optimized_queries, max_results_per_query=max_search_results)
+    resolved_time_range = (
+        _infer_time_range(from_date, to_date) if search_time_range == "auto" else search_time_range
+    )
+    search_results = run_job_search(
+        optimized_queries,
+        max_results_per_query=max_search_results,
+        time_range=resolved_time_range,
+    )
     _notify(progress, "jobs_searched", "done")
 
     # =====================================================
@@ -147,6 +179,7 @@ def run_pipeline(
     statistics["removed_non_job"] = processing_result["removed_non_job"]
     statistics["raw_jobs_scraped"] = len(scraped_jobs)
     statistics["search_results_found"] = len(search_results)
+    statistics["search_time_range"] = resolved_time_range or "none (no freshness bias)"
     _notify(progress, "jobs_processed", "done")
 
     _notify(progress, "results_ready", "done")

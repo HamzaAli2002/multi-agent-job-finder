@@ -43,22 +43,29 @@ def build_optimized_queries(
     parts.append("jobs")
     queries.append(" ".join(parts))
 
-    # 2. Role + top 3 technologies + "jobs"
+    # 2. Freshness-biased: role + "new jobs today" — placed early (not
+    #    last) so it never gets cut off by max_queries. This, combined
+    #    with the time_range param passed to Tavily at the API-call
+    #    level, is what actually surfaces just-posted listings instead
+    #    of old evergreen career pages.
+    queries.append(f"{role} new jobs today")
+
+    # 3. Role + top 3 technologies + "jobs"
     parts = [role] + top_skills[:3] + ["jobs"]
     queries.append(" ".join(parts))
 
-    # 3. Role + location + "hiring"
+    # 4. Role + location + "hiring"
     if location:
         queries.append(f"{role} {location} hiring")
 
-    # 4. Role + "remote jobs" (broaden if candidate open to remote)
+    # 5. Role + "remote jobs" (broaden if candidate open to remote)
     queries.append(f"{role} remote jobs")
 
-    # 5. Experience + role + "careers" + each remaining skill combos
+    # 6. Experience + role + "careers" + each remaining skill combos
     if experience_level:
         queries.append(f"{experience_level} {role} careers")
 
-    # 6. Role + all top skills combined + "openings"
+    # 7. Role + all top skills combined + "openings"
     if top_skills:
         queries.append(f"{role} {' '.join(top_skills)} openings")
 
